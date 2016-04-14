@@ -18,18 +18,26 @@ var app = express();
 // Use environment defined port or 4000
 var port = process.env.PORT || 4000;
 
+// app.use(express.methodOverride());
+
 //Allow CORS so that backend and frontend could pe put on different servers
 var allowCrossDomain = function(req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept");
-  next();
+  res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      
+    // intercept OPTIONS method
+    if ('OPTIONS' == req.method) {
+      res.send(200);
+    }
+    else {
+      next();
+    }
 };
 app.use(allowCrossDomain);
 
 // Use the body-parser package in our application
-app.use(bodyParser.urlencoded({
-  extended: true
-}));
+app.use(bodyParser.json());
 
 // All our routes will start with /api
 app.use('/api', router);
@@ -104,20 +112,39 @@ usersRoute.get(function(req, res) {
 });
 
 usersRoute.post(function(req, res) {
-
-	var newUser = new User();
-	newUser.name = req.body.name;
-	newUser.email = req.body.email;
-	newUser.pendingTasks = [];
-	newUser.save(function(err) {
-		if(err) {
-			res.send(err);
+	var bad = false;
+	if(req.body.name == '' || req.body.email == '') {
+		res.status(500).json({message: "You must input a name and email!"})
+		bad = true;
+	}
+	User.find(function(err, users) {
+		var emails = [];
+		for(var i = 0; i < users.length; i++) {
+			emails.push(users[i].email);
 		}
-		else {
-			res.status(201).json({message: "New user created!"});
+		if(emails.indexOf(req.body.email) != -1) {
+			res.status(500).json({message: "That Email already exists!"});
+			bad = true;
+		}
+		if(!bad) {
+			var newUser = new User();
+			newUser.name = req.body.name;
+			newUser.email = req.body.email;
+			newUser.pendingTasks = [];
+			newUser.save(function(err) {
+				if(err) {
+					res.send(err);
+				}
+				else {
+					res.status(201).json({message: "New user created!"});
+				}
+			});
 		}
 	});
+
 });
+
+//TODO: OPTIONS
 
 //--------- /users/:id ------------
 
@@ -129,9 +156,10 @@ usersByIdRoute.get(function(req, res) {
 			res.status(404).send(err);
 		}
 		else {
-			res.status(200).json({message: "OK", data: user});
+			res.status(200).json({message: "OK.", data: user});
+
 		}
-	})
+	});
 });
 
 usersByIdRoute.delete(function(req, res) {
@@ -142,7 +170,7 @@ usersByIdRoute.delete(function(req, res) {
 			res.send(err);
 		}
 		else {
-			res.status(200).json({message: 'OK. Deleted.', data: user});
+			res.status(200).json({message: 'OK. User Deleted.'});
 		}
 	});
 });
@@ -151,10 +179,18 @@ usersByIdRoute.put(function(req, res) {
 
 	User.findById(req.params.id, function(err, user) {
 		if(err) {
-			res.send(err);
+			res.status(404).send(err);
 		}
 		else {
-			res.json({message: "TODO: Edit user capabilities"});
+			user.name = req.body.name;
+			user.email = req.body.email;
+			user.pendingTasks = req.body.pendingTasks;
+			user.save(function(err) {
+				if(err)
+					res.send(err);
+				res.status(200).json({message: "OK. User Updated", data: user});
+			});
+
 		}
 	});
 });
@@ -251,6 +287,43 @@ tasksByIdRoute.get(function(req, res) {
 			res.status(200).json({message: "OK", data: task});
 		}
 	})
+});
+
+tasksByIdRoute.delete(function(req, res) {
+	Task.remove({
+		_id: req.params.id
+	}, function(err, task) {
+		if(err) {
+			res.send(err);
+		}
+		else {
+			res.status(200).json({message: 'OK. Task Deleted.'});
+		}
+	});
+});
+
+tasksByIdRoute.put(function(req, res) {
+
+	Task.findById(req.params.id, function(err, task) {
+		if(err) {
+			res.status(404).send(err);
+		}
+		else {
+			task.name = req.body.name;
+			task.description = req.body.description;
+			task.deadline = req.body.deadline;
+			task.assignedUser = req.body.assignedUser;
+			task.completed = req.body.completed;
+			task.assignedUserName = req.body.assignedUserName;
+
+			task.save(function(err) {
+				if(err)
+					res.send(err);
+				res.status(200).json({message: "OK. Task Updated", data: task});
+			});
+
+		}
+	});
 });
 
 // Start the server
