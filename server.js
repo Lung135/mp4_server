@@ -5,8 +5,12 @@ var Llama = require('./models/llama');
 var bodyParser = require('body-parser');
 var router = express.Router();
 
+//my schemas
+var User = require('./models/user');
+var Task = require('./models/task');
+
 //replace this with your Mongolab URL
-mongoose.connect('mongodb://localhost/mp4');
+mongoose.connect('mongodb://lucas:pw1@ds019960.mlab.com:19960/cs498mp4');
 
 // Create our Express application
 var app = express();
@@ -45,6 +49,209 @@ llamaRoute.get(function(req, res) {
 });
 
 //Add more routes here
+
+//users route
+var usersRoute = router.route('/users');
+
+usersRoute.get(function(req, res) {
+
+	var query = User.find();
+
+	var filters = req.query;
+	console.log(filters);
+	// filters = JSON.stringify(filters);
+	// console.log(filters);
+	var f;
+	if(filters.where) {
+		f = filters.where;
+		f = JSON.parse(f);
+		query = User.find(f);
+	}
+	if(filters.sort) {
+		f = filters.sort;
+		f = JSON.parse(f);
+		query = query.sort(f);
+	}
+	if(filters.select) {
+		f = filters.select;
+		f = JSON.parse(f);
+		query = query.select(f);
+	}
+	if(filters.skip) {
+		f = filters.skip;
+		f = JSON.parse(f);
+		query = query.skip(f);
+	}
+	if(filters.limit) {
+		f = filters.limit;
+		f = JSON.parse(f);
+		query = query.limit(f);
+	}
+	if(filters.count) {
+		f = filters.count;
+		f = JSON.parse(f);
+		query = query.count(f);
+	}
+
+	query.exec(function(err, users) {
+		if(err) {
+			res.status(404).send(err)
+		}
+		else {
+			res.status(200).json({message: "OK", data: users});
+		}
+	});
+});
+
+usersRoute.post(function(req, res) {
+
+	var newUser = new User();
+	newUser.name = req.body.name;
+	newUser.email = req.body.email;
+	newUser.pendingTasks = [];
+	newUser.save(function(err) {
+		if(err) {
+			res.send(err);
+		}
+		else {
+			res.status(201).json({message: "New user created!"});
+		}
+	});
+});
+
+//--------- /users/:id ------------
+
+var usersByIdRoute = router.route('/users/:id');
+ 
+usersByIdRoute.get(function(req, res) {
+	User.findById(req.params.id, function(err, user) {
+		if(err) {
+			res.status(404).send(err);
+		}
+		else {
+			res.status(200).json({message: "OK", data: user});
+		}
+	})
+});
+
+usersByIdRoute.delete(function(req, res) {
+	User.remove({
+		_id: req.params.id
+	}, function(err, user) {
+		if(err) {
+			res.send(err);
+		}
+		else {
+			res.status(200).json({message: 'OK. Deleted.', data: user});
+		}
+	});
+});
+
+usersByIdRoute.put(function(req, res) {
+
+	User.findById(req.params.id, function(err, user) {
+		if(err) {
+			res.send(err);
+		}
+		else {
+			res.json({message: "TODO: Edit user capabilities"});
+		}
+	});
+});
+
+//--------- /tasks ------------
+var tasksRoute = router.route('/tasks');
+
+tasksRoute.get(function(req, res) {
+	var query = Task.find();
+
+	var filters = req.query;
+	console.log(filters);
+	// filters = JSON.stringify(filters);
+	// console.log(filters);
+	var f;
+	if(filters.where) {
+		f = filters.where;
+		f = JSON.parse(f);
+		query = Task.find(f);
+	}
+	if(filters.sort) {
+		f = filters.sort;
+		f = JSON.parse(f);
+		query = query.sort(f);
+	}
+	if(filters.select) {
+		f = filters.select;
+		f = JSON.parse(f);
+		query = query.select(f);
+	}
+	if(filters.skip) {
+		f = filters.skip;
+		f = JSON.parse(f);
+		query = query.skip(f);
+	}
+	if(filters.limit) {
+		f = filters.limit;
+		f = JSON.parse(f);
+		query = query.limit(f);
+	}
+	if(filters.count) {
+		f = filters.count;
+		f = JSON.parse(f);
+		query = query.count(f);
+	}
+
+	query.exec(function(err, tasks) {
+		if(err) {
+			res.status(404).send(err)
+		}
+		else {
+			res.status(200).json({message: "OK", data: tasks});
+		}
+	})
+});
+
+tasksRoute.post(function(req, res) {
+	var newTask = new Task();
+	newTask.name = req.body.name;
+	newTask.description = req.body.description;
+	newTask.deadline = req.body.deadline;
+	newTask.completed = false;
+	newTask.assignedUser = req.body.assignedUser; //user _id
+	newTask.assignedUserName = req.body.assignedUserName;
+
+	// newTask.save().then(function(err) {
+	// 	if(err) {
+	// 		res.send(err);
+	// 	}
+	// 	else {
+	// 		res.status(201).json({message: "Task Created"});
+	// 	}
+	// })
+
+	newTask.save(function(err) {
+		if(err) {
+			res.send(err);
+		}
+		else {
+			res.status(201).json({message: "Task Created", data: newTask});
+		}
+	});
+});
+
+//--------- /tasks/:id ------------
+var tasksByIdRoute = router.route('/tasks/:id');
+
+tasksByIdRoute.get(function(req, res) {
+	Task.findById(req.params.id, function(err, task) {
+		if(err) {
+			res.status(404).send(err);
+		}
+		else {
+			res.status(200).json({message: "OK", data: task});
+		}
+	})
+});
 
 // Start the server
 app.listen(port);
